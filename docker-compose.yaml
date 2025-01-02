@@ -1,0 +1,57 @@
+version: "3.8"
+
+services:
+
+  api:
+    build:
+      context: .
+      dockerfile: compose/local/app/Dockerfile
+      target: app
+    image: web-app
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src/app/:/opt/pysetup/src/app
+      - ./config/local.ini:/opt/pysetup/config/local.ini
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: /start
+
+  postgres:
+
+    image: postgres:15-alpine
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+    environment:
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sample_password}
+        POSTGRES_USER: ${POSTGRES_USER:-postgres}
+        POSTGRES_DB: ${POSTGRES_DB:-postgres}
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  postgres-migration:
+    build:
+      context: .
+      dockerfile: ./compose/local/app/Dockerfile
+      target: postgres-migration
+    image: postgres-migration
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./config/local.ini:/opt/pysetup/config/local.ini:ro
+      - ./alembic.ini:/opt/pysetup/alembic.ini:ro
+      - ./src/app/infrastructure/database/migrations/:/opt/pysetup/src/app/database/migrations/
+    environment:
+      CONFIG_PATH: ${CONFIG_PATH:-./opt/pysetup/config/local.ini}

@@ -1,0 +1,6 @@
+.python-version
+.venv
+.idea
+.dockerignore
+Dockerfile
+docker-compose.yaml
